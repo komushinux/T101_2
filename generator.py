@@ -68,7 +68,7 @@ def check(modl, ground_truth):
     else:
         r = np.dot(modl - ground_truth, modl - ground_truth) / (np.dot(ground_truth, ground_truth))
         print("Result of check: ", r)
-        if r < 0.005:
+        if r < 0.0005:
             return True
         else:
             return False
@@ -130,6 +130,13 @@ def get_dJ(x, y, theta):
     return dJ
 
 
+def get_dJ_minibatch(x, y, theta):
+    x_trp = x.transpose()
+    h = theta.dot(x_trp)
+    dJ = 1 / len(y) * (h - y).dot(x)
+    return dJ
+
+
 # get gradient over all minibatch of single sample from xy dataset - stochastic gradient descent
 def get_dJ_sgd(x, y, theta, alpha):
     temp_x = x
@@ -173,7 +180,7 @@ def minimize(x_data, y_data, L, deg_stand):
 
 
 def minimize_minibatch(x_data, y_data, L, M, deg_minibatch):
-    alpha = 0.155
+    alpha = 0.15
     shape_x = np.shape(x_data)[0]
     size_minibatch = shape_x / M
     x_data = np.vsplit(x_data, size_minibatch)
@@ -181,23 +188,20 @@ def minimize_minibatch(x_data, y_data, L, M, deg_minibatch):
     y_data = np.hsplit(y_data, size_minibatch)
     theta_count = np.ones((1, deg_minibatch + 1))
 
-    itr = [0] * L
-    J_mass = [None] * L
     for i in range(L):
         buf = int(size_minibatch * random())
-        dJ = get_dJ(x_data[buf], y_data[buf], theta_count)  # here you should try different gradient descents
+        dJ = get_dJ_minibatch(x_data[buf], y_data[buf], theta_count)  # here you should try different gradient descents
         # theta_count = theta_count - alpha * dJ
         theta_count = gradient_descent_step(dJ, theta_count, alpha)
         alpha -= 0.0002
         # print('new theta = ', theta_count)
-        h = np.dot(theta_count, x_data.transpose())
-        J_mass[i] = 0.5 / len(y_data) * np.square(h - y_data.transpose()).sum(axis=1)
-        itr[i] = i
+        h = np.dot(theta_count, x_data[buf].transpose())
+        J = 0.5 / 60 * np.square(h - y_data[buf]).sum(axis=1)
+        plt.plot(i, J, "b.")
 
     plt.title("Minimize task")
     plt.xlabel("iteration")
     plt.ylabel("Loss func")
-    plt.plot(itr, J_mass, "g.")
     plt.show()
     return theta_count
 
