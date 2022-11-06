@@ -116,47 +116,29 @@ def polynomial_regression_numpy(filename):
 # dJ(theta) - gradient, i.e. partial derivatives of J over theta - dJ/dtheta_i (shape is 1 x N - the same as theta)
 # x and y are both vectors
 
-def gradient_descent_step(dJ, theta, alpha):
-    new_tet = theta - alpha * dJ
+def gradient_descent_step(dJ, theta_step, alpha):
+    new_tet = theta_step - alpha * dJ
     return new_tet
 
 
 # get gradient over all xy dataset - gradient descent
-def get_dJ(x, y, theta):
+def get_dJ(x, y, theta_dJ):
     x_trp = x.transpose()
     y_trp = y.transpose()
-    h = theta.dot(x_trp)
+    h = theta_dJ.dot(x_trp)
     dJ = 1 / len(y) * (h - y_trp).dot(x)
     return dJ
 
 
-def get_dJ_minibatch(x, y, theta):
+def get_dJ_minibatch(x, y, theta_mb, siz):
     x_trp = x.transpose()
-    h = theta.dot(x_trp)
-    dJ = 1 / len(y) * (h - y).dot(x)
+    h = theta_mb.dot(x_trp)
+    dJ = 1 / siz * (h - y).dot(x)
     return dJ
 
 
-# get gradient over all minibatch of single sample from xy dataset - stochastic gradient descent
-def get_dJ_sgd(x, y, theta, alpha):
-    temp_x = x
-    temp_y = y
-    new_theta = np.ndarray
-    new_theta.reshape(np.shape(theta))
-    theta_trans = theta.transpose()
-    h = np.dot(theta_trans, x)  # calculate hypothesis
-    dj = [0] * len(theta)
-    for i in range(len(theta)):  # calculate partial derivatives of J
-        for k in range(len(x)):
-            dj[i] += 1 / len(x) * (h[np.power(x, i)] - np.power(y, i)) * np.power(x[k], i)
-    for i in range(len(x)):
-        index = random.randint(0, len(x))
-        new_theta.itemset(i, gradient_descent_step(dj[index], theta[index], alpha))
-    return new_theta
-
-
 def minimize(x_data, y_data, L, deg_stand):
-    alpha = 0.15
+    alpha = 0.16
     theta_count = np.ones((1, deg_stand + 1))  # you can try random initialization
 
     itr = [0] * L
@@ -165,7 +147,7 @@ def minimize(x_data, y_data, L, deg_stand):
         dJ = get_dJ(x_data, y_data, theta_count)  # here you should try different gradient descents
         # theta_count = theta_count - alpha * dJ
         theta_count = gradient_descent_step(dJ, theta_count, alpha)
-        alpha -= 0.0002
+        alpha -= 0.00002
         # print('new theta = ', theta_count)
         h = np.dot(theta_count, x_data.transpose())
         J_mass[i] = 0.5 / len(y_data) * np.square(h - y_data.transpose()).sum(axis=1)
@@ -179,8 +161,29 @@ def minimize(x_data, y_data, L, deg_stand):
     return theta_count
 
 
-def minimize_minibatch(x_data, y_data, L, M, deg_minibatch):
-    alpha = 0.15
+def minimize_sgd(x_data, y_data, L, deg_sgd, siz):
+    alpha = 0.7
+    y_data = y_data.transpose()
+    theta_sgd = np.ones((1, deg_sgd + 1))
+    for i in range(L):
+        buf = int(siz * random())
+        x_line = np.reshape(x_data[buf], (1, deg_sgd + 1))
+        y_single = np.reshape(y_data[0][buf], (1, 1))
+        dJ = get_dJ_minibatch(x_line, y_single, theta_sgd, siz)  # here you should try different gradient descents
+        theta_sgd = gradient_descent_step(dJ, theta_sgd, alpha)
+        alpha -= 0.00002
+        h = theta_sgd.dot(x_line.transpose())
+        J = 0.5 / siz * (np.square(h - y_single))
+        plt.plot(i, J, "g.")
+    plt.title("Minimize task")
+    plt.xlabel("iteration")
+    plt.ylabel("Loss func")
+    plt.show()
+    return theta_sgd
+
+
+def minimize_minibatch(x_data, y_data, L, M, deg_minibatch, siz):
+    alpha = 0.28
     shape_x = np.shape(x_data)[0]
     size_minibatch = shape_x / M
     x_data = np.vsplit(x_data, size_minibatch)
@@ -190,14 +193,15 @@ def minimize_minibatch(x_data, y_data, L, M, deg_minibatch):
 
     for i in range(L):
         buf = int(size_minibatch * random())
-        dJ = get_dJ_minibatch(x_data[buf], y_data[buf], theta_count)  # here you should try different gradient descents
+        dJ = get_dJ_minibatch(x_data[buf], y_data[buf], theta_count,
+                              siz)  # here you should try different gradient descents
         # theta_count = theta_count - alpha * dJ
         theta_count = gradient_descent_step(dJ, theta_count, alpha)
-        alpha -= 0.0002
+        alpha -= 0.00001
         # print('new theta = ', theta_count)
         h = np.dot(theta_count, x_data[buf].transpose())
-        J = 0.5 / 60 * np.square(h - y_data[buf]).sum(axis=1)
-        plt.plot(i, J, "b.")
+        J = 0.5 / siz * np.square(h - y_data[buf]).sum(axis=1)
+        plt.plot(i, J, "g.")
 
     plt.title("Minimize task")
     plt.xlabel("iteration")
@@ -208,7 +212,7 @@ def minimize_minibatch(x_data, y_data, L, M, deg_minibatch):
 
 if __name__ == "__main__":
     # ex1. exact solution
-    # generate_linear(1, -3, 1, 'linear.csv', 100)
+    generate_linear(1, -3, 1, 'linear.csv', 100)
     # model = np.squeeze(linear_regression_exact("linear.csv"))
     mod1 = np.squeeze(numpy.asarray(np.array(([-3], [1]))))
     # print(f"Is model correct? - {check(model, mod1)}")
@@ -221,37 +225,59 @@ if __name__ == "__main__":
 
     # ex2. find minimum with gradient descent
     # 0. generate date with function above
-    generate_linear(1, -3, 1, 'linear.csv', 100)
+    generate_linear(2, -4, 1, 'linear.csv', 100)
     # 1. shuffle data into train - test - valid
     with open('linear.csv', 'r') as f:
         data = np.loadtxt(f, delimiter=',')
-    train_data = data[:60]
-    test_data = data[60::1]
-    valid_data = data[80::1]
+    train_data = data[:80]
+    test_data = data[80::1]
+    valid_data = data[90::1]
     x, y = np.hsplit(train_data, 2)
-    x = np.hstack([np.ones((60, 1)), x])
+    x = np.hstack([np.ones((80, 1)), x])
 
     # 2. call minimize(...) and plot J(i)
     # 3. call check(theta1, theta2) to check results for optimal theta
-    deg = 1
-    theta = np.squeeze(minimize(x, y, 60, deg))
+    degree = 1
+    siz_train = 80
+    theta = np.squeeze(minimize(x, y, 80, degree))
     print('theta = ', theta)
-    print(f"Is model correct? - {check(theta, mod1)}")
+    check(theta, mod1)
     print("*" * 40)
 
-    theta = np.squeeze(minimize_minibatch(x, y, 60, 5, deg))
+    theta = np.squeeze(minimize_sgd(x, y, 400, degree, siz_train))
     print('theta = ', theta)
-    print(f"Is model correct? - {check(theta, mod1)}")
+    check(theta, mod1)
     print("*" * 40)
+
+    theta = np.squeeze(minimize_minibatch(x, y, 400, 5, degree, siz_train))
+    print('theta = ', theta)
+    check(theta, mod1)
+    print("*" * 40)
+
+    siz_train = 100
+    degree = 3
     # ex3. polynomial regression
-    # 0. generate date with function generate_poly for degree=3, use size = 10, 20, 30, ... 100
-    # for each size:
-    # 1. shuffle data into train - test - valid
-    # Now we're going to try different degrees of model to aproximate our data, set degree=1 (linear regression)
-    # 2. call minimize(...) and plot J(i)
-    # 3. call check(theta1, theta2) to check results for optimal theta
-    # 4. plot min(J_train), min(J_test) vs size: is it overfit or underfit?
-    #
-    # repeat 0-4 for degres = 2,3,4
+    mod2 = np.squeeze(numpy.asarray(np.array(([-3], [1]))))
+    generate_poly([1, 2, 3, 4], degree, 0.5, 'polynomial.csv', 100)
+    with open('polynomial.csv', 'r') as f:
+        data = np.loadtxt(f, delimiter=',')
 
-    # ex3* the same with regularization
+    x, y = np.hsplit(data, 2)
+    x_big = x
+    for i in range(2, degree + 1):
+        x_big = np.hstack([x_big, x ** i])
+    one_col = np.ones((siz_train, 1))
+    x = np.hstack([one_col, x_big])
+
+    theta = np.squeeze(minimize(x, y, 1000, degree))
+    print('theta = ', theta)
+    print("*" * 40)
+
+    theta = np.squeeze(minimize_sgd(x, y, 4000, degree, siz_train))
+    print('theta = ', theta)
+    print("*" * 40)
+
+    theta = np.squeeze(minimize_minibatch(x, y, 4000, 5, degree, siz_train))
+    print('theta = ', theta)
+    print("*" * 40)
+
